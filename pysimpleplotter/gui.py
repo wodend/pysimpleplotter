@@ -1,135 +1,176 @@
 #!/usr/bin/env python3
-import matplotlib.pyplot as plt
-import pandas as pd
-import PySimpleGUI as sg
 
+from dataclasses import dataclass
+from enum import Enum, IntEnum
+from json import (
+    JSONEncoder,
+    load as load_json,
+    dump as dump_json,
+)
+from typing import List, Dict, Any
+
+from PySimpleGUI import (
+    LISTBOX_SELECT_MODE_EXTENDED,
+    WIN_CLOSED,
+    Column,
+    Frame,
+    Button,
+    Window,
+    Text,
+    Input,
+    Combo,
+    FilesBrowse,
+    Listbox,
+)
+
+from config import Config
 from dataset import Dataset
+from plot import Plot
+
+WindowKey = Enum(
+    "WindowKey",
+    [
+        "FILE_NAME",
+        "FILE_TYPE",
+        "COL",
+        "COLS",
+        "TITLE",
+        "X_COL",
+        "Y_COL",
+    ],
+)
+
+EventKey = Enum(
+    "EventKey",
+    [
+        "ADD_COL",
+        "DEL_COLS",
+        "LOAD",
+        "PLOT",
+    ],
+)
 
 
 def main():
-    config = config_template()
-    title = "PySimplePlotter"
+    config = Config(
+        window_title="PySimplePlotter",
+        title_font=("Any", 15, "bold"),
+        body_font=("Any", 11),
+    )
     layout = [
-        *input_dataset_layout(),
-        [sg.HorizontalSeparator()],
-        *plot_config_layout(),
-        [sg.Button("Plot", key="-PLOT-"), sg.Button("Exit")],
+        [
+            Column(dataset_layout(config), vertical_alignment="top"),
+            Column(plot_layout(config), vertical_alignment="top"),
+        ],
+        [Button("Exit")],
     ]
-    window = sg.Window(title, layout)
+    window = Window(config.window_title, layout)
     while True:
         event, values = window.read()
-        if event == sg.WIN_CLOSED or event == "Exit":
+        if event == WIN_CLOSED or event == "Exit":
             break
-        if event == "-FILE_NAME_IN-":
-            config["dataset"].update({"file_name": values["-FILE_NAME_IN-"]})
-        if event == "-FILE_TYPE_IN-":
-            file_type = values["-FILE_TYPE_IN-"].lower().replace(" ", "_")
-            config["dataset"].update({"file_type": file_type})
-        if event == "-ADD_COL-":
-            cols = window["-COLS-"].get_list_values() + [values["-COL_IN-"]]
-            window["-COLS-"].update(values=cols)
-            window["-COL_IN-"].update("")
-            config["dataset"].update({"cols": cols})
-        if event == "-TITLE_IN-":
-            config["plot"].update({"title": values["-TITLE_IN-"]})
-        if event == "-X_IN-":
-            config["plot"].update({"x": values["-X_IN-"]})
-        if event == "-Y_IN-":
-            config["plot"].update({"y": values["-Y_IN-"]})
-        if event == "-DEL_COL-":
-            cols = window["-COLS-"].get_list_values()
-            for i in window["-COLS-"].get_indexes():
-                cols[i] = None
-            cols_new = [x for x in cols if x is not None]
-            window["-COLS-"].update(cols_new)
-            config["dataset"].update({"cols": cols_new})
-        if event == "-PLOT-":
-            dataset = Dataset(**config["dataset"])
-            df = dataset.load()
-            plot(df, **config["plot"])
-        print(event, config)
+        handle(window, event, values)
     window.close()
 
 
-def config_template():
-    return {
-        "dataset": {
-            "file_name": "",
-            "file_type": "tsv",
-            "cols": [],
-        },
-        "plot": {
-            "title": "",
-            "x": "",
-            "y": "",
-        },
-    }
-
-def input_dataset_layout():
-    col_input_title = "Column names"
+def dataset_layout(config):
     return [
-        [sg.Text("Input dataset", font=("Any", 15, "bold"))],
+        [Text("Input dataset", font=config.title_font)],
         [
-            sg.Text("File name", font=("Any", 11)),
-            sg.Input(key="-FILE_NAME_IN-", enable_events=True),
-            sg.FilesBrowse(),
+            Text("File name", font=config.body_font),
+            Input(key=WindowKey.FILE_NAME),
+            FilesBrowse(),
         ],
         [
-            sg.Text("Type", font=("Any", 11)),
-            sg.InputCombo(
+            Text("File Type", font=config.body_font),
+            Combo(
+                # TODO: Decouple representation from logic, probably add to dataset.py
                 ("TSV", "Perkin Elmer"),
                 default_value="TSV",
-                key="-FILE_TYPE_IN-",
-                enable_events=True,
+                key=WindowKey.FILE_TYPE,
             ),
         ],
-        [
-            sg.Text(col_input_title, font=("Any", 11)),
-            sg.Input(key="-COL_IN-"),
-            sg.Button("Add", key="-ADD_COL-"),
-        ],
-        [
-            sg.Button(
-                "Remove\nselected\ncolumn(s)",
-                size=(len(col_input_title),0),
-                key="-DEL_COL-",
-            ),
-            sg.Listbox(
-                select_mode=sg.LISTBOX_SELECT_MODE_EXTENDED,
-                values=[],
-                size=(45, 8),
-                key="-COLS-",
-                enable_events=True,
-            ),
-        ],
+        [columns_layout(config)],
+        [Button("Load", key=EventKey.LOAD)],
     ]
 
 
-def plot_config_layout():
+def columns_layout(config):
+    return Frame(
+        "Columns",
+        [
+            [
+                Input(key=WindowKey.COL),
+                Button("Add", key=EventKey.ADD_COL),
+            ],
+            [
+                Listbox(
+                    select_mode=LISTBOX_SELECT_MODE_EXTENDED,
+                    values=[],
+                    size=(45, 4),
+                    key=WindowKey.COLS,
+                    enable_events=True,
+                ),
+            ],
+            [
+                Button(
+                    "Remove selected column(s)",
+                    key=EventKey.DEL_COLS,
+                ),
+            ],
+        ],
+        font=config.body_font,
+    )
+
+
+def plot_layout(config):
     return [
-        [sg.Text("Plot Configuration", font=("Any", 15, "bold"))],
+        [Text("Plot Configuration", font=config.title_font)],
         [
-            sg.Text("Title", font=("Any", 11)),
-            sg.Input(key="-TITLE_IN-", enable_events=True),
+            Text("Title", font=config.body_font),
+            Input(key=WindowKey.TITLE),
         ],
         [
-            sg.Text("x-axis Column", font=("Any", 11)),
-            sg.Input(key="-X_IN-", enable_events=True),
+            Text("x-axis Column", font=config.body_font),
+            Input(key=WindowKey.X_COL),
         ],
         [
-            sg.Text("y-axis Column", font=("Any", 11)),
-            sg.Input(key="-Y_IN-", enable_events=True),
+            Text("y-axis Column", font=config.body_font),
+            Input(key=WindowKey.Y_COL),
         ],
+        # TODO: Include the plot in-window
+        [Button("Plot", key=EventKey.PLOT)],
     ]
 
 
-def plot(df, title, x, y):
-    fig, ax = plt.subplots()
-    ax.set_title(title)
-    ax.set_xlabel(x)
-    ax.set_ylabel(y)
-    ax.plot(df[x], df[y])
-    plt.show()
+def handle(window, event, values):
+    # TODO: Refactor to group events acting on columns and on DataFrames
+    if event == EventKey.ADD_COL:
+        cols = window[WindowKey.COLS].get_list_values()
+        window[WindowKey.COLS].update(cols + [values[WindowKey.COL]])
+        window[WindowKey.COL].update("")
+    elif event == EventKey.DEL_COLS:
+        cols = window[WindowKey.COLS].get_list_values()
+        for i in reversed(sorted(window[WindowKey.COLS].get_indexes())):
+            del cols[i]
+        window[WindowKey.COLS].update(cols)
+    # TODO: Add load visualization
+    elif event == EventKey.LOAD:
+        pass
+    # TODO: Add error handling
+    elif event == EventKey.PLOT:
+        dataset = Dataset(
+            file_name=values[WindowKey.FILE_NAME],
+            file_type=values[WindowKey.FILE_TYPE],
+            cols=window[WindowKey.COLS].get_list_values(),
+        )
+        df = dataset.load()
+        plot = Plot(
+            title=values[WindowKey.TITLE],
+            x_col=values[WindowKey.X_COL],
+            y_col=values[WindowKey.Y_COL],
+        )
+        plot.plot(df)
 
 
 if __name__ == "__main__":
