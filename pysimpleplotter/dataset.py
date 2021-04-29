@@ -18,7 +18,7 @@ class Dataset:
     def _row_regex(self) -> str:
         number = r"[\d.,eE-]+"
         fields = [f"({number})"] * len(self.cols)
-        row = "\t".join(fields)
+        row = "\s+".join(fields)
         return row
 
     def load(self) -> DataFrame:
