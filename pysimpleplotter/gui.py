@@ -13,6 +13,7 @@ from PySimpleGUI import (
     LISTBOX_SELECT_MODE_EXTENDED,
     WIN_CLOSED,
     Column,
+    Element,
     Frame,
     Button,
     Window,
@@ -26,6 +27,8 @@ from PySimpleGUI import (
 from config import Config
 from dataset import Dataset
 from plot import Plot
+
+from numpy import float64
 
 WindowKey = Enum(
     "WindowKey",
@@ -43,15 +46,16 @@ WindowKey = Enum(
 EventKey = Enum(
     "EventKey",
     [
-        "ADD_COL",
-        "DEL_COLS",
+        "RENAME_COL",
         "LOAD",
         "PLOT",
     ],
 )
 
+Layout = List[List[Element]]
 
-def main():
+
+def main() -> None:
     config = Config(
         window_title="PySimplePlotter",
         title_font=("Any", 15, "bold"),
@@ -73,57 +77,45 @@ def main():
     window.close()
 
 
-def dataset_layout(config):
+def dataset_layout(config: Config) -> Layout:
     return [
         [Text("Input dataset", font=config.title_font)],
         [
             Text("File name", font=config.body_font),
-            Input(key=WindowKey.FILE_NAME),
+            Input(key=WindowKey.FILE_NAME, enable_events=True),
             FilesBrowse(),
         ],
-        [
-            Text("File Type", font=config.body_font),
-            Combo(
-                # TODO: Decouple representation from logic, probably add to dataset.py
-                ("TSV", "Perkin Elmer"),
-                default_value="TSV",
-                key=WindowKey.FILE_TYPE,
-            ),
-        ],
-        [columns_layout(config)],
         [Button("Load", key=EventKey.LOAD)],
+        [columns_frame(config)],
     ]
 
 
-def columns_layout(config):
+def columns_frame(config: Config) -> Element:
     return Frame(
         "Columns",
         [
-            [
-                Input(key=WindowKey.COL),
-                Button("Add", key=EventKey.ADD_COL),
-            ],
+            # [Text("Select a column to rename it", font=config.body_font)],
             [
                 Listbox(
-                    select_mode=LISTBOX_SELECT_MODE_EXTENDED,
                     values=[],
                     size=(45, 4),
                     key=WindowKey.COLS,
-                    enable_events=True,
                 ),
             ],
-            [
-                Button(
-                    "Remove selected column(s)",
-                    key=EventKey.DEL_COLS,
-                ),
-            ],
+            # TODO: Add rename column feature
+            # [
+            #     Input(key=WindowKey.COL),
+            #     Button(
+            #         "Rename",
+            #         key=EventKey.RENAME_COL,
+            #     ),
+            # ],
         ],
         font=config.body_font,
     )
 
 
-def plot_layout(config):
+def plot_layout(config: Config) -> Layout:
     return [
         [Text("Plot Configuration", font=config.title_font)],
         [
@@ -143,26 +135,28 @@ def plot_layout(config):
     ]
 
 
-def handle(window, event, values):
+def handle(window: Window, event: EventKey, values: Dict[Any, Any]):
     # TODO: Refactor to group events acting on columns and on DataFrames
-    if event == EventKey.ADD_COL:
+    if event == EventKey.RENAME_COL:
         cols = window[WindowKey.COLS].get_list_values()
-        window[WindowKey.COLS].update(cols + [values[WindowKey.COL]])
-        window[WindowKey.COL].update("")
-    elif event == EventKey.DEL_COLS:
-        cols = window[WindowKey.COLS].get_list_values()
-        for i in reversed(sorted(window[WindowKey.COLS].get_indexes())):
-            del cols[i]
+        index = window[WindowKey.COLS].get_indexes()[0]
+        cols[index] = values[WindowKey.COL]
         window[WindowKey.COLS].update(cols)
     # TODO: Add load visualization
     elif event == EventKey.LOAD:
-        pass
+        dataset = Dataset(
+            file_name=values[WindowKey.FILE_NAME],
+        )
+        df = dataset.load()
+        window[WindowKey.COLS].update(df.columns)
+        window[WindowKey.TITLE].update(f"{df.columns[1]} vs. {df.columns[0]}")
+        window[WindowKey.X_COL].update(df.columns[0])
+        window[WindowKey.Y_COL].update(df.columns[1])
+        print(df)
     # TODO: Add error handling
     elif event == EventKey.PLOT:
         dataset = Dataset(
             file_name=values[WindowKey.FILE_NAME],
-            file_type=values[WindowKey.FILE_TYPE],
-            cols=window[WindowKey.COLS].get_list_values(),
         )
         df = dataset.load()
         plot = Plot(

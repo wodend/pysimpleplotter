@@ -11,7 +11,7 @@ class Plot:
     x_col: str
     y_col: str
 
-    def plot(self, df):
+    def plot(self, df) -> None:
         fig, ax = plt.subplots()
         ax.set_title(self.title)
         ax.set_xlabel(self.x_col)
