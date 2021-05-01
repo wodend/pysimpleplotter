@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from re import match, search
-from typing import List
+from typing import List, Tuple
 
 from dataclasses import dataclass
 from exceptions import UnknownFileTypeError
@@ -23,7 +23,7 @@ class Dataset:
         _line = line
         while _match:
             dsvs += (_match.group(1),)
-            _line = _line[_match.end():]
+            _line = _line[_match.end() :]
             _match = match(self.sep_regex + capture_field_regex, _line)
         return dsvs
 
