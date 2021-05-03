@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
+from dataclasses import dataclass
 from re import match, search
 from typing import List, Tuple
 
-from dataclasses import dataclass
-from exceptions import UnknownFileTypeError
 from numpy import float64
 from pandas import DataFrame
+
+from exceptions import UnknownFileTypeError
 
 
 @dataclass(frozen=True)

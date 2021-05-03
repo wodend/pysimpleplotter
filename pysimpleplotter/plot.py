@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import matplotlib.pyplot as plt
-
 from dataclasses import dataclass
+
+import matplotlib.pyplot as plt
 
 
 @dataclass(frozen=True)

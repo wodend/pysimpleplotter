@@ -1,12 +1,6 @@
 #!/usr/bin/env python3
 
-from dataclasses import dataclass
-from enum import Enum, IntEnum
-from json import (
-    JSONEncoder,
-    load as load_json,
-    dump as dump_json,
-)
+from enum import Enum
 from typing import List, Dict, Any
 
 from matplotlib.pyplot import Figure
@@ -96,6 +90,15 @@ class PySimplePlotter:
         self.input_configs = []
 
     def gui(self) -> None:
+        window = self.window()
+        while True:
+            event, values = window.read()
+            if event == WIN_CLOSED or event == "Exit":
+                break
+            self.handle(window, event, values)
+        window.close()
+
+    def window(self) -> Window:
         align = "top"
         layout = [
             [
@@ -105,12 +108,7 @@ class PySimplePlotter:
             [Button("Exit")],
         ]
         window = Window(self.gui_config.window_title, layout)
-        while True:
-            event, values = window.read()
-            if event == WIN_CLOSED or event == "Exit":
-                break
-            self.handle(window, event, values)
-        window.close()
+        return window
 
     def dataset_layout(self) -> Layout:
         return [
@@ -143,7 +141,6 @@ class PySimplePlotter:
                         key=EventKey.RENAME_COL,
                     ),
                 ],
-                # TODO: Add dataset visualization
             ],
             font=self.gui_config.body_font,
         )
@@ -168,35 +165,46 @@ class PySimplePlotter:
         ]
 
     def handle(self, window: Window, event: EventKey, values: Dict[Any, Any]) -> None:
-        if event == EventKey.RENAME_COL:
-            cols = window[WindowKey.COLS].get_list_values()
-            index = window[WindowKey.COLS].get_indexes()[0]
-            cols[index] = values[WindowKey.COL]
-            self.dfs[0].columns = cols
-            window[WindowKey.COLS].update(cols)
-            window[WindowKey.COL].update("")
-            print(self.dfs[0])
         # TODO: Add load visualization
-        elif event == EventKey.LOAD:
-            dataset = Dataset(
-                file_name=values[WindowKey.FILE_NAME],
-            )
-            self.dfs.insert(0, dataset.load())
-            window[WindowKey.COLS].update(self.dfs[0].columns)
-            window[WindowKey.TITLE].update(
-                f"{self.dfs[0].columns[1]} vs. {self.dfs[0].columns[0]}"
-            )
-            window[WindowKey.X_COL].update(self.dfs[0].columns[0])
-            window[WindowKey.Y_COL].update(self.dfs[0].columns[1])
-            print(self.dfs[0])
+        if event == EventKey.LOAD:
+            self.load(window, event, values)
+        elif event == EventKey.RENAME_COL:
+            self.rename_col(window, event, values)
         # TODO: Add error handling
         elif event == EventKey.PLOT:
-            plot = Plot(
-                title=values[WindowKey.TITLE],
-                x_col=values[WindowKey.X_COL],
-                y_col=values[WindowKey.Y_COL],
-            )
-            plot.plot(self.dfs[0])
+            self.plot(window, event, values)
+
+    def load(self, window: Window, event: EventKey, values: Dict[Any, Any]) -> None:
+        dataset = Dataset(
+            file_name=values[WindowKey.FILE_NAME],
+        )
+        self.dfs.insert(0, dataset.load())
+        window[WindowKey.COLS].update(self.dfs[0].columns)
+        window[WindowKey.TITLE].update(
+            f"{self.dfs[0].columns[1]} vs. {self.dfs[0].columns[0]}"
+        )
+        window[WindowKey.X_COL].update(self.dfs[0].columns[0])
+        window[WindowKey.Y_COL].update(self.dfs[0].columns[1])
+        print(self.dfs[0])
+
+    def rename_col(
+        self, window: Window, event: EventKey, values: Dict[Any, Any]
+    ) -> None:
+        cols = window[WindowKey.COLS].get_list_values()
+        index = window[WindowKey.COLS].get_indexes()[0]
+        cols[index] = values[WindowKey.COL]
+        self.dfs[0].columns = cols
+        window[WindowKey.COLS].update(cols)
+        window[WindowKey.COL].update("")
+        print(self.dfs[0])
+
+    def plot(self, window: Window, event: EventKey, values: Dict[Any, Any]) -> None:
+        plot = Plot(
+            title=values[WindowKey.TITLE],
+            x_col=values[WindowKey.X_COL],
+            y_col=values[WindowKey.Y_COL],
+        )
+        plot.plot(self.dfs[0])
 
 
 if __name__ == "__main__":
