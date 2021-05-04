@@ -19,9 +19,9 @@ from PySimpleGUI import (
     Listbox,
 )
 
-from guiconfig import GuiConfig
-from dataset import Dataset
-from plot import Plot
+from pysimpleplotter.guiconfig import GuiConfig
+from pysimpleplotter.dataset import Dataset
+from pysimpleplotter.plot import Plot
 
 WindowKey = Enum(
     "WindowKey",

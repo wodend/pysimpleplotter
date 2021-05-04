@@ -24,4 +24,9 @@ setuptools.setup(
         "Operating System :: OS Independent"
         "Framework :: Matplotlib",
     ),
+    entry_points={
+        "console_scripts": [
+            "pysimpleplotter=pysimpleplotter:main",
+        ]
+    },
 )

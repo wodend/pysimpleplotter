@@ -7,7 +7,7 @@ from typing import List, Tuple
 from numpy import float64
 from pandas import DataFrame
 
-from exceptions import UnknownFileTypeError
+from pysimpleplotter.exceptions import UnknownFileTypeError
 
 
 @dataclass(frozen=True)

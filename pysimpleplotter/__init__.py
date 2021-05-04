@@ -3,3 +3,9 @@ from pysimpleplotter.pysimpleplotter import (
     EventKey,
     WindowKey,
 )
+
+def main():
+    PySimplePlotter().gui()
+
+if __name__ == "__main__":
+    main()
