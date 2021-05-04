@@ -104,7 +104,7 @@ class TestFileInput(unittest.TestCase):
             list(self.psp.dfs[0].columns),
             ["x_col", "y_col"],
         )
-        self.assertEqual(len(self.psp.dfs[0]), 1025)
+        self.assertEqual(len(self.psp.dfs[0]), 1024)
         window.close()
 
     def test_load_perkin_elmer_tga(self) -> None:

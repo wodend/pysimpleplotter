@@ -45,7 +45,8 @@ class Dataset:
             dsv = [values for values in raw_dsv if len(values) == col_count]
             if self._is_header(dsv[0]):
                 cols = dsv[0]
+                df = DataFrame(dsv[1:], columns=cols, dtype=float)
             else:
                 cols = [f"col{i+1}" for i in range(col_count)]
-            df = DataFrame(dsv, columns=cols, dtype=float)
+                df = DataFrame(dsv, columns=cols, dtype=float)
             return df

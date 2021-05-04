@@ -17,10 +17,12 @@ from PySimpleGUI import (
     Combo,
     FilesBrowse,
     Listbox,
+    popup,
 )
 
 from pysimpleplotter.guiconfig import GuiConfig
 from pysimpleplotter.dataset import Dataset
+from pysimpleplotter.exceptions import UnknownFileTypeError
 from pysimpleplotter.plot import Plot
 
 WindowKey = Enum(
@@ -28,13 +30,16 @@ WindowKey = Enum(
     [
         "FILE_NAME",
         "FILE_TYPE",
+        "FILE_NOT_FOUND",
         "COL",
         "COLS",
+        "INVALID_PLOT_CONFIG",
         "TITLE",
         "X_COL",
         "Y_COL",
     ],
 )
+
 
 EventKey = Enum(
     "EventKey",
@@ -111,14 +116,27 @@ class PySimplePlotter:
         return window
 
     def dataset_layout(self) -> Layout:
+        file_name_text_size = (9, 1)
+        file_name_text_size = (9, 1)
+        button_size = (6, 1)
         return [
             [Text("Input dataset", font=self.gui_config.title_font)],
             [
                 Text("File name", font=self.gui_config.body_font),
-                Input(key=WindowKey.FILE_NAME, enable_events=True),
-                FilesBrowse(),
+                Input(key=WindowKey.FILE_NAME),
+                FilesBrowse(size=button_size),
             ],
-            [Button("Load", key=EventKey.LOAD)],
+            [
+                Text(
+                    "",
+                    size=(43, 1),
+                    pad=((5, 17), (0, 0)),
+                    key=WindowKey.FILE_NOT_FOUND,
+                    font=self.gui_config.body_font,
+                    text_color="orange"
+                ),
+                Button("Load", key=EventKey.LOAD, size=button_size),
+            ],
             [self.columns_frame()],
         ]
 
@@ -161,31 +179,46 @@ class PySimplePlotter:
                 Input(key=WindowKey.Y_COL),
             ],
             # TODO: Include the plot in-window
-            [Button("Plot", key=EventKey.PLOT)],
+            [
+                Button("Plot", key=EventKey.PLOT),
+                Text(
+                    "",
+                    size=(64, 1),
+                    key=WindowKey.INVALID_PLOT_CONFIG,
+                    font=self.gui_config.body_font,
+                    text_color="orange"
+                ),
+            ],
         ]
 
     def handle(self, window: Window, event: EventKey, values: Dict[Any, Any]) -> None:
-        # TODO: Add load visualization
-        if event == EventKey.LOAD:
-            self.load(window, event, values)
-        elif event == EventKey.RENAME_COL:
-            self.rename_col(window, event, values)
-        # TODO: Add error handling
-        elif event == EventKey.PLOT:
-            self.plot(window, event, values)
+        try:
+            if event == EventKey.LOAD:
+                self.load(window, event, values)
+            elif event == EventKey.RENAME_COL:
+                self.rename_col(window, event, values)
+            elif event == EventKey.PLOT:
+                self.plot(window, event, values)
+        except FileNotFoundError as e:
+            self.file_not_found(window, True)
+        except KeyError as e:
+            self.invalid_plot_config(window, True)
 
     def load(self, window: Window, event: EventKey, values: Dict[Any, Any]) -> None:
+        self.file_not_found(window, False)
         dataset = Dataset(
             file_name=values[WindowKey.FILE_NAME],
         )
         self.dfs.insert(0, dataset.load())
         window[WindowKey.COLS].update(self.dfs[0].columns)
-        window[WindowKey.TITLE].update(
-            f"{self.dfs[0].columns[1]} vs. {self.dfs[0].columns[0]}"
-        )
-        window[WindowKey.X_COL].update(self.dfs[0].columns[0])
-        window[WindowKey.Y_COL].update(self.dfs[0].columns[1])
-        print(self.dfs[0])
+        if len(self.dfs[0].columns) >= 2:
+            window[WindowKey.TITLE].update(
+                f"{self.dfs[0].columns[1]} vs. {self.dfs[0].columns[0]}"
+            )
+            window[WindowKey.X_COL].update(self.dfs[0].columns[0])
+            window[WindowKey.Y_COL].update(self.dfs[0].columns[1])
+        # TODO: Add a debug mode to print things like the below
+        #print(self.dfs[0])
 
     def rename_col(
         self, window: Window, event: EventKey, values: Dict[Any, Any]
@@ -199,12 +232,30 @@ class PySimplePlotter:
         print(self.dfs[0])
 
     def plot(self, window: Window, event: EventKey, values: Dict[Any, Any]) -> None:
-        plot = Plot(
-            title=values[WindowKey.TITLE],
-            x_col=values[WindowKey.X_COL],
-            y_col=values[WindowKey.Y_COL],
-        )
-        plot.plot(self.dfs[0])
+        if values[WindowKey.X_COL] and values[WindowKey.Y_COL]:
+            self.invalid_plot_config(window, False)
+            plot = Plot(
+                title=values[WindowKey.TITLE],
+                x_col=values[WindowKey.X_COL],
+                y_col=values[WindowKey.Y_COL],
+            )
+            plot.plot(self.dfs[0])
+        else:
+            self.invalid_plot_config(window, True)
+
+    def file_not_found(self, window, display: bool):
+        if display:
+            window[WindowKey.FILE_NOT_FOUND].update("File not found")
+        else:
+            window[WindowKey.FILE_NOT_FOUND].update("")
+
+    def invalid_plot_config(self, window, display: bool):
+        if display:
+            window[WindowKey.INVALID_PLOT_CONFIG].update(
+                "Invalid plot configuration"
+            )
+        else:
+            window[WindowKey.INVALID_PLOT_CONFIG].update("")
 
 
 if __name__ == "__main__":
