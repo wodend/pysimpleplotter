@@ -4,8 +4,10 @@ from pysimpleplotter.pysimpleplotter import (
     WindowKey,
 )
 
+
 def main():
     PySimplePlotter().gui()
+
 
 if __name__ == "__main__":
     main()

@@ -3,10 +3,13 @@
 from enum import Enum
 from typing import List, Dict, Any
 
-from matplotlib.pyplot import Figure
+
+from matplotlib.pyplot import Figure, Axes
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from pandas import DataFrame
 from PySimpleGUI import (
     WIN_CLOSED,
+    Canvas,
     Column,
     Element,
     Frame,
@@ -17,7 +20,7 @@ from PySimpleGUI import (
     Combo,
     FilesBrowse,
     Listbox,
-    popup,
+    popup_get_file,
 )
 
 from pysimpleplotter.guiconfig import GuiConfig
@@ -28,6 +31,7 @@ from pysimpleplotter.plot import Plot
 WindowKey = Enum(
     "WindowKey",
     [
+        "CANVAS",
         "FILE_NAME",
         "FILE_TYPE",
         "FILE_NOT_FOUND",
@@ -47,6 +51,7 @@ EventKey = Enum(
         "RENAME_COL",
         "LOAD",
         "PLOT",
+        "SAVE_PLOT",
     ],
 )
 
@@ -107,8 +112,20 @@ class PySimplePlotter:
         align = "top"
         layout = [
             [
-                Column(self.dataset_layout(), vertical_alignment=align),
-                Column(self.plot_layout(), vertical_alignment=align),
+                Column(
+                    [
+                        *self.dataset_layout(),
+                        *self.plot_layout(),
+                    ],
+                    vertical_alignment=align,
+                ),
+                Column(
+                    [
+                        [Canvas(size=(640, 480), key=WindowKey.CANVAS)],
+                        [Button("Save", key=EventKey.SAVE_PLOT)],
+                        # TODO: Add visual indication that the plot was saved
+                    ],
+                ),
             ],
             [Button("Exit")],
         ]
@@ -133,7 +150,7 @@ class PySimplePlotter:
                     pad=((5, 17), (0, 0)),
                     key=WindowKey.FILE_NOT_FOUND,
                     font=self.gui_config.body_font,
-                    text_color="orange"
+                    text_color="orange",
                 ),
                 Button("Load", key=EventKey.LOAD, size=button_size),
             ],
@@ -183,10 +200,10 @@ class PySimplePlotter:
                 Button("Plot", key=EventKey.PLOT),
                 Text(
                     "",
-                    size=(64, 1),
+                    size=(47, 1),
                     key=WindowKey.INVALID_PLOT_CONFIG,
                     font=self.gui_config.body_font,
-                    text_color="orange"
+                    text_color="orange",
                 ),
             ],
         ]
@@ -199,6 +216,8 @@ class PySimplePlotter:
                 self.rename_col(window, event, values)
             elif event == EventKey.PLOT:
                 self.plot(window, event, values)
+            elif event == EventKey.SAVE_PLOT:
+                self.save_plot()
         except FileNotFoundError as e:
             self.file_not_found(window, True)
         except KeyError as e:
@@ -218,7 +237,7 @@ class PySimplePlotter:
             window[WindowKey.X_COL].update(self.dfs[0].columns[0])
             window[WindowKey.Y_COL].update(self.dfs[0].columns[1])
         # TODO: Add a debug mode to print things like the below
-        #print(self.dfs[0])
+        # print(self.dfs[0])
 
     def rename_col(
         self, window: Window, event: EventKey, values: Dict[Any, Any]
@@ -239,9 +258,17 @@ class PySimplePlotter:
                 x_col=values[WindowKey.X_COL],
                 y_col=values[WindowKey.Y_COL],
             )
-            plot.plot(self.dfs[0])
+            self.fig, self.ax = plot.plot(self.dfs[0])
+            fig_agg = FigureCanvasTkAgg(self.fig, window[WindowKey.CANVAS].TKCanvas)
+            fig_agg.get_tk_widget().pack()
+            fig_agg.draw()
         else:
             self.invalid_plot_config(window, True)
+
+    def save_plot(self) -> None:
+        file_name = popup_get_file("Choose where to save your plot")
+        if file_name:
+            self.fig.savefig(file_name)
 
     def file_not_found(self, window, display: bool):
         if display:
@@ -251,9 +278,7 @@ class PySimplePlotter:
 
     def invalid_plot_config(self, window, display: bool):
         if display:
-            window[WindowKey.INVALID_PLOT_CONFIG].update(
-                "Invalid plot configuration"
-            )
+            window[WindowKey.INVALID_PLOT_CONFIG].update("Invalid plot configuration")
         else:
             window[WindowKey.INVALID_PLOT_CONFIG].update("")
 

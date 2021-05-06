@@ -31,7 +31,6 @@ python3 gui.py
 ## Roadmap
 
 - Load multiple files
-- Rename columns
 - Print dataset summary statistics
 - Plot multiple datasets on one plot
 - Create package and set up GUI as the entrypoint
