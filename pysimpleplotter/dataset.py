@@ -12,25 +12,26 @@ from pysimpleplotter.exceptions import UnknownFileTypeError
 
 @dataclass(frozen=True)
 class Dataset:
+    name: str
     file_name: str
-    field_regex: str = r"[^\s]+"
-    sep_regex: str = r"[\s,]+?"
-    header_regex: str = r"[^\d\W]{2}"
 
     def _dsvs(self, line: str) -> Tuple[str, ...]:
+        field_regex = r"[^\s]+"
+        sep_regex = r"[\s,]+?"
         dsvs = ()
-        capture_field_regex = f"({self.field_regex})"
+        capture_field_regex = f"({field_regex})"
         _match = search(capture_field_regex, line)
         _line = line
         while _match:
             dsvs += (_match.group(1),)
             _line = _line[_match.end() :]
-            _match = match(self.sep_regex + capture_field_regex, _line)
+            _match = match(sep_regex + capture_field_regex, _line)
         return dsvs
 
     def _is_header(self, line: str) -> bool:
+        header_regex = r"[^\d\W]{2}"
         for value in line:
-            if search(self.header_regex, value) and value.lower() != "nan":
+            if search(header_regex, value) and value.lower() != "nan":
                 return True
         return False
 

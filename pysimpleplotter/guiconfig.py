@@ -9,3 +9,5 @@ class GuiConfig:
     window_title: str
     title_font: Tuple[str, int, str]
     body_font: Tuple[str, int, str]
+    valign: str
+    frame_size: str

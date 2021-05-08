@@ -1,8 +1,4 @@
-from pysimpleplotter.pysimpleplotter import (
-    PySimplePlotter,
-    EventKey,
-    WindowKey,
-)
+from pysimpleplotter.pysimpleplotter import PySimplePlotter
 
 
 def main():
