@@ -5,7 +5,7 @@ from enum import Enum
 from os.path import split, splitext, getsize
 from typing import List, Dict, Any
 
-from matplotlib.pyplot import Figure, Axes, subplots
+import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from pandas import DataFrame
 from PySimpleGUI import (
@@ -33,16 +33,18 @@ from pysimpleplotter.relation import Relation
 
 Layout = List[List[Element]]
 
+
 def human_readable(byte_count: int, _format: str = "{value:.3f} {symbol}") -> str:
-    symbols = ('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
+    symbols = ("B", "K", "M", "G", "T", "P", "E", "Z", "Y")
     prefix = {}
     for i, s in enumerate(symbols[1:]):
-        prefix[s] = 1 << (i+1)*10
+        prefix[s] = 1 << (i + 1) * 10
     for symbol in reversed(symbols[1:]):
         if byte_count >= prefix[symbol]:
             value = float(byte_count) / prefix[symbol]
             return _format.format(**locals())
     return _format.format(value=byte_count, symbol=symbols[0])
+
 
 class PySimplePlotter:
     """Plots simple delimited data.
@@ -132,7 +134,7 @@ class PySimplePlotter:
                         file_types=(
                             ("Delimiter-separated values", "*.csv *.tsv *.txt"),
                             ("All files", "*"),
-                        )
+                        ),
                     ),
                     Button("Remove", key="-REMOVE_DATASET-"),
                 ],
@@ -184,7 +186,8 @@ class PySimplePlotter:
         ]
 
     def display(self, text: List[str], keys: List[str]):
-            return [
+        return (
+            [
                 Column(
                     [
                         [Text(text, size=(17, 1), justification="right")]
@@ -193,13 +196,11 @@ class PySimplePlotter:
                     pad=(0, 0),
                 ),
                 Column(
-                    [
-                        [self.display_field(key)]
-                        for key in keys
-                    ],
+                    [[self.display_field(key)] for key in keys],
                     pad=(0, 0),
                 ),
             ],
+        )
 
     def display_field(self, key: str, default_text: str = "None") -> Text:
         return Text(
@@ -214,6 +215,7 @@ class PySimplePlotter:
     def dropdown(self, key: str, width: int = 45) -> Combo:
         return Combo(
             [],
+            enable_events=True,
             key=key,
             metadata={"initialized": False},
             disabled=True,
@@ -292,7 +294,7 @@ class PySimplePlotter:
                         "initialized": False,
                     },
                 ),
-            ]
+            ],
         ]
 
     def plot_layout(self) -> Layout:
@@ -335,8 +337,6 @@ class PySimplePlotter:
                             Combo(
                                 [
                                     "Default",
-                                    "Chemical Reviews",
-                                    "Nature Physics",
                                 ],
                                 default_value="Default",
                                 key="-STYLE-",
@@ -504,43 +504,71 @@ class PySimplePlotter:
         self.set_list(select_key, items, index)
 
     def new_relation(self, values: Dict[Any, Any]) -> None:
-        # TODO: Display error if no datasets are loaded
         items = self.window["-SELECT_RELATION-"].get_list_values()
         if not self.window["-SELECT_RELATION-"].metadata["initialized"]:
             index = 0
-            datasets = self.window["-SELECT_DATASET-"].get_list_values()
-            print(f"Datasets: {datasets}")
-            print(f"Dfs: {list(self.dfs)}")
-            self.window["-INDEPENDENT_DATASET-"].update(
-                values=datasets,
-                disabled=False,
-                set_to_index=0,
-            )
-            self.window["-DEPENDENT_DATASET-"].update(
-                values=datasets,
-                disabled=False,
-                set_to_index=0,
-            )
-            self.window["-INDEPENDENT_COL-"].update(
-                values=list(self.dfs[datasets[0]].columns),
-                disabled=False,
-                set_to_index=0,
-            )
-            # TODO: Only set the dependent col if there are enough values
-            self.window["-DEPENDENT_COL-"].update(
-                values=list(self.dfs[datasets[0]].columns),
-                disabled=False, set_to_index=1,
-            )
         else:
             index = len(items)
         name = f"relation{index+1}"
-        self.relations[name] = Relation(name, None, None, None, None)
+
+        # TODO: Display error if no datasets are loaded
+        dataset = self.window["-SELECT_DATASET-"].get()[0]
+        dataset_cols = list(self.dfs[dataset].columns)
+        independent_dataset = dataset
+        independent_col = dataset_cols[0]
+        dependent_dataset = dataset
+        dependent_col = dataset_cols[1]
+        self.relations[name] = Relation(
+            name,
+            independent_dataset,
+            independent_col,
+            dependent_dataset,
+            dependent_col,
+            "black",
+        )
         added_index = self.add_list("-SELECT_RELATION-", name)
         self.select_relation(name)
 
     def select_relation(self, name: str) -> None:
         # TODO: Add error handling
+        relation = self.relations[name]
         self.display_input("-RENAME_RELATION-", name)
+
+        datasets = self.window["-SELECT_DATASET-"].get_list_values()
+        # TODO: Add error handling if selected datasets are removed
+        independent_dataset_index = datasets.index(relation.independent_dataset)
+        dependent_dataset_index = datasets.index(relation.dependent_dataset)
+        independent_dataset_cols = list(self.dfs[datasets[independent_dataset_index]].columns)
+        dependent_dataset_cols = list(self.dfs[datasets[dependent_dataset_index]].columns)
+        # TODO: Add error handling if selected cols are removed
+        independent_col_index = independent_dataset_cols.index(relation.independent_col)
+        dependent_col_index = dependent_dataset_cols.index(relation.dependent_col)
+        self.window["-INDEPENDENT_DATASET-"].update(
+            values=datasets,
+            disabled=False,
+            set_to_index=independent_dataset_index,
+        )
+        self.window["-DEPENDENT_DATASET-"].update(
+            values=datasets,
+            disabled=False,
+            set_to_index=dependent_dataset_index,
+        )
+        self.window["-INDEPENDENT_COL-"].update(
+            values=independent_dataset_cols,
+            disabled=False,
+            set_to_index=independent_col_index,
+        )
+        self.window["-DEPENDENT_COL-"].update(
+            values=dependent_dataset_cols,
+            disabled=False,
+            set_to_index=dependent_col_index,
+        )
+        #self.window["-COLOR-"].update(
+        #    values=dependent_dataset_cols,
+        #    disabled=False,
+        #    set_to_index=dependent_col_index,
+        #)
+        print(self.relations)
 
     def rename_relation(self, values: Dict[Any, Any]) -> None:
         old_name = values["-SELECT_RELATION-"][0]
@@ -552,9 +580,10 @@ class PySimplePlotter:
         self.rename_selected("-SELECT_RELATION-", new_name)
 
     def select_independent_dataset(self, values: Dict[Any, Any]) -> None:
+        name = values["-SELECT_RELATION-"][0]
         new_independent_dataset = values["-INDEPENDENT_DATASET-"]
-        self.relations[new_name] = dataclasses.replace(
-            self.relations.pop(old_name),
+        self.relations[name] = dataclasses.replace(
+            self.relations[name],
             independent_dataset=new_independent_dataset,
         )
         self.window["-INDEPENDENT_COL-"].update(
@@ -563,9 +592,10 @@ class PySimplePlotter:
         )
 
     def select_dependent_dataset(self, values: Dict[Any, Any]) -> None:
+        name = values["-SELECT_RELATION-"][0]
         new_dependent_dataset = values["-DEPENDENT_DATASET-"]
-        self.relations[new_name] = dataclasses.replace(
-            self.relations.pop(old_name),
+        self.relations[name] = dataclasses.replace(
+            self.relations[name],
             dependent_dataset=new_dependent_dataset,
         )
         self.window["-DEPENDENT_COL-"].update(
@@ -574,38 +604,80 @@ class PySimplePlotter:
         )
 
     def select_independent_col(self, values: Dict[Any, Any]) -> None:
+        name = values["-SELECT_RELATION-"][0]
         new_independent_col = values["-INDEPENDENT_COL-"]
-        self.relations[new_name] = dataclasses.replace(
-            self.relations.pop(old_name),
+        self.relations[name] = dataclasses.replace(
+            self.relations[name],
             independent_col=new_independent_col,
         )
 
     def select_dependent_col(self, values: Dict[Any, Any]) -> None:
+        name = values["-SELECT_RELATION-"][0]
         new_dependent_col = values["-DEPENDENT_COL-"]
-        self.relations[new_name] = dataclasses.replace(
-            self.relations.pop(old_name),
+        self.relations[name] = dataclasses.replace(
+            self.relations[name],
             dependent_col=new_dependent_col,
         )
 
     def plot(self, values: Dict[Any, Any]) -> None:
         # TODO: Add error handling
-        x_df = self.dfs[values["-INDEPENDENT_DATASET-"]]
-        x_col = values["-INDEPENDENT_COL-"]
-        y_df = self.dfs[values["-DEPENDENT_DATASET-"]]
-        y_col = values["-DEPENDENT_COL-"]
-        self.fig, self.ax = subplots()
-        #ax.set_title(title)
-        #ax.set_xlabel(x_col)
-        #ax.set_ylabel(y_col)
-        self.ax.plot(x_df[x_col], y_df[y_col])
+        if values["-STYLE-"] == "Default":
+            style = {
+                "axes.edgecolor": "black",
+                "axes.facecolor": "white",
+                "axes.labelcolor": "black",
+                "axes.prop_cycle": plt.cycler(
+                    "color", ["0.00", "0.40", "0.60", "0.70"]
+                ),
+                "figure.edgecolor": "white",
+                "figure.facecolor": "0.75",
+                "grid.color": "black",
+                "image.cmap": "gray",
+                "lines.color": "black",
+                "patch.edgecolor": "black",
+                "patch.facecolor": "gray",
+                "savefig.edgecolor": "white",
+                "savefig.facecolor": "white",
+                "text.color": "black",
+                "xtick.color": "black",
+                "ytick.color": "black",
+            }
+        else:
+            raise ValueError("No such style")
+        # Create plot
+        with plt.style.context(style):
+            self.fig, self.ax = plt.subplots()
+            x_df = self.dfs[values["-INDEPENDENT_DATASET-"]]
+            x_col = values["-INDEPENDENT_COL-"]
+            x_label = f"{values['-X_AXIS_LABEL-']}"
+            if values["-X_AXIS_UNITS-"]:
+                x_label += f" ({values['-X_AXIS_UNITS-']})"
+            y_df = self.dfs[values["-DEPENDENT_DATASET-"]]
+            y_col = values["-DEPENDENT_COL-"]
+            y_label = f"{values['-Y_AXIS_LABEL-']}"
+            if values["-Y_AXIS_UNITS-"]:
+                y_label += f" ({values['-Y_AXIS_UNITS-']})"
+            self.ax.set_title(values["-PLOT_TITLE-"])
+            self.ax.set_xlabel(x_label)
+            self.ax.set_ylabel(y_label)
+            self.ax.plot(x_df[x_col], y_df[y_col], values["-COLOR-"])
+
+        # Display plot
         fig_agg = FigureCanvasTkAgg(self.fig, self.window["-CANVAS-"].TKCanvas)
         fig_agg.get_tk_widget().pack()
         fig_agg.draw()
+
+        # for name, relation in self.relations.items():
+        #    print(name, relation)
+        #    #x = self.dfs[relation.independent_dataset][relation.independent_col]
+        #    #y = self.dfs[relation.dependent_dataset][relation.dependent_col]
+        #    #self.ax.plot(x, y)
 
     def save_plot(self) -> None:
         file_name = popup_get_file("Choose where to save your plot")
         if file_name:
             self.fig.savefig(file_name)
+
 
 if __name__ == "__main__":
     PySimplePlotter().gui()

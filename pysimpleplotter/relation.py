@@ -9,3 +9,4 @@ class Relation:
     independent_col: str
     dependent_dataset: str
     dependent_col: str
+    color: str
