@@ -24,19 +24,15 @@ clone the repo and manually install its dependencies:
 Start PySimplePlotter:
 
 ```
-cd pysimpleplotter/
-python3 gui.py
+pysimpleplotter
 ```
 
 ## Roadmap
 
-- Load multiple files
-- Print dataset summary statistics
-- Plot multiple datasets on one plot
-- Create package and set up GUI as the entrypoint
 - Add to PyPi for install
 - Add more detail to the README Usage section
 - Add in-line documentation
+- Add Windows executable installer
 
 ## License
 
