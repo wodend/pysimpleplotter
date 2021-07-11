@@ -11,6 +11,7 @@ from pandas import DataFrame
 from PySimpleGUI import (
     DEFAULT_ELEMENT_SIZE,
     WIN_CLOSED,
+    RELIEF_SUNKEN,
     Canvas,
     Column,
     ColorChooserButton,
@@ -245,22 +246,26 @@ class PySimplePlotter:
                 Column(
                     [
                         [Text("Dataset")],
-                        [self.dropdown("-INDEPENDENT_DATASET-", 15)],
-                        [self.dropdown("-DEPENDENT_DATASET-", 15)],
+                        [self.dropdown("-SELECT_INDEPENDENT_DATASET-", 15)],
+                        [self.dropdown("-SELECT_DEPENDENT_DATASET-", 15)],
                     ],
                     pad=(0, 0),
                 ),
                 Column(
                     [
                         [Text("Column")],
-                        [self.dropdown("-INDEPENDENT_COL-", 12)],
-                        [self.dropdown("-DEPENDENT_COL-", 12)],
+                        [self.dropdown("-SELECT_INDEPENDENT_COL-", 12)],
+                        [self.dropdown("-SELECT_DEPENDENT_COL-", 12)],
                     ],
                     pad=(0, 0),
                 ),
             ],
-            [Text("Color")],
-            [Input("", key="-COLOR-"), ColorChooserButton("Choose")],
+            [
+                Text("Color"),
+                Text("", key="-COLOR-", pad=((10, 0), (0, 0)), size=(20, 1), relief=RELIEF_SUNKEN),
+                Input("", key="-SELECT_COLOR-", size=(1, 1), visible=False, enable_events=True),
+                ColorChooserButton("Choose"),
+            ],
         ]
 
     def selector(
@@ -395,14 +400,16 @@ class PySimplePlotter:
                 self.select_relation(values["-SELECT_RELATION-"][0])
             if event == "-RENAME_RELATION-":
                 self.rename_relation(values)
-            if event == "-INDEPENDENT_DATASET-":
+            if event == "-SELECT_INDEPENDENT_DATASET-":
                 self.select_independent_dataset(values)
-            if event == "-DEPENDENT_DATASET-":
+            if event == "-SELECT_DEPENDENT_DATASET-":
                 self.select_dependent_dataset(values)
-            if event == "-INDEPENDENT_COL-":
+            if event == "-SELECT_INDEPENDENT_COL-":
                 self.select_independent_col(values)
-            if event == "-DEPENDENT_COL-":
+            if event == "-SELECT_DEPENDENT_COL-":
                 self.select_dependent_col(values)
+            if event == "-SELECT_COLOR-":
+                self.select_color(values)
             if event == "-PLOT-":
                 self.plot(values)
         except Exception as e:
@@ -422,10 +429,10 @@ class PySimplePlotter:
                 first_name = name
         self.window["-SELECT_DATASET-"].update(set_to_index=first_index)
         self.select_dataset(name)
-        self.window["-INDEPENDENT_DATASET-"].update(
+        self.window["-SELECT_INDEPENDENT_DATASET-"].update(
             values=self.window["-SELECT_DATASET-"].get_list_values(),
         )
-        self.window["-DEPENDENT_DATASET-"].update(
+        self.window["-SELECT_DEPENDENT_DATASET-"].update(
             values=self.window["-SELECT_DATASET-"].get_list_values(),
         )
 
@@ -524,7 +531,7 @@ class PySimplePlotter:
             independent_col,
             dependent_dataset,
             dependent_col,
-            "black",
+            "#000000",
         )
         added_index = self.add_list("-SELECT_RELATION-", name)
         self.select_relation(name)
@@ -543,31 +550,29 @@ class PySimplePlotter:
         # TODO: Add error handling if selected cols are removed
         independent_col_index = independent_dataset_cols.index(relation.independent_col)
         dependent_col_index = dependent_dataset_cols.index(relation.dependent_col)
-        self.window["-INDEPENDENT_DATASET-"].update(
+        self.window["-SELECT_INDEPENDENT_DATASET-"].update(
             values=datasets,
             disabled=False,
             set_to_index=independent_dataset_index,
         )
-        self.window["-DEPENDENT_DATASET-"].update(
+        self.window["-SELECT_DEPENDENT_DATASET-"].update(
             values=datasets,
             disabled=False,
             set_to_index=dependent_dataset_index,
         )
-        self.window["-INDEPENDENT_COL-"].update(
+        self.window["-SELECT_INDEPENDENT_COL-"].update(
             values=independent_dataset_cols,
             disabled=False,
             set_to_index=independent_col_index,
         )
-        self.window["-DEPENDENT_COL-"].update(
+        self.window["-SELECT_DEPENDENT_COL-"].update(
             values=dependent_dataset_cols,
             disabled=False,
             set_to_index=dependent_col_index,
         )
-        #self.window["-COLOR-"].update(
-        #    values=dependent_dataset_cols,
-        #    disabled=False,
-        #    set_to_index=dependent_col_index,
-        #)
+        self.window["-COLOR-"].update(
+            background_color=relation.color,
+        )
         print(self.relations)
 
     def rename_relation(self, values: Dict[Any, Any]) -> None:
@@ -581,31 +586,31 @@ class PySimplePlotter:
 
     def select_independent_dataset(self, values: Dict[Any, Any]) -> None:
         name = values["-SELECT_RELATION-"][0]
-        new_independent_dataset = values["-INDEPENDENT_DATASET-"]
+        new_independent_dataset = values["-SELECT_INDEPENDENT_DATASET-"]
         self.relations[name] = dataclasses.replace(
             self.relations[name],
             independent_dataset=new_independent_dataset,
         )
-        self.window["-INDEPENDENT_COL-"].update(
+        self.window["-SELECT_INDEPENDENT_COL-"].update(
             values=list(self.dfs[new_independent_dataset].columns),
             set_to_index=0,
         )
 
     def select_dependent_dataset(self, values: Dict[Any, Any]) -> None:
         name = values["-SELECT_RELATION-"][0]
-        new_dependent_dataset = values["-DEPENDENT_DATASET-"]
+        new_dependent_dataset = values["-SELECT_DEPENDENT_DATASET-"]
         self.relations[name] = dataclasses.replace(
             self.relations[name],
             dependent_dataset=new_dependent_dataset,
         )
-        self.window["-DEPENDENT_COL-"].update(
+        self.window["-SELECT_DEPENDENT_COL-"].update(
             values=list(self.dfs[new_dependent_dataset].columns),
             set_to_index=0,
         )
 
     def select_independent_col(self, values: Dict[Any, Any]) -> None:
         name = values["-SELECT_RELATION-"][0]
-        new_independent_col = values["-INDEPENDENT_COL-"]
+        new_independent_col = values["-SELECT_INDEPENDENT_COL-"]
         self.relations[name] = dataclasses.replace(
             self.relations[name],
             independent_col=new_independent_col,
@@ -613,10 +618,23 @@ class PySimplePlotter:
 
     def select_dependent_col(self, values: Dict[Any, Any]) -> None:
         name = values["-SELECT_RELATION-"][0]
-        new_dependent_col = values["-DEPENDENT_COL-"]
+        new_dependent_col = values["-SELECT_DEPENDENT_COL-"]
         self.relations[name] = dataclasses.replace(
             self.relations[name],
             dependent_col=new_dependent_col,
+        )
+
+    # TODO: Refactor selection functions into one which takes the field as an argument
+    def select_color(self, values: Dict[Any, Any]) -> None:
+        name = values["-SELECT_RELATION-"][0]
+        new_color = values["-SELECT_COLOR-"]
+        print(f"Selecting color {new_color}")
+        self.window["-COLOR-"].update(
+            background_color=new_color,
+        )
+        self.relations[name] = dataclasses.replace(
+            self.relations[name],
+            color=new_color,
         )
 
     def plot(self, values: Dict[Any, Any]) -> None:
@@ -647,31 +665,27 @@ class PySimplePlotter:
         # Create plot
         with plt.style.context(style):
             self.fig, self.ax = plt.subplots()
-            x_df = self.dfs[values["-INDEPENDENT_DATASET-"]]
-            x_col = values["-INDEPENDENT_COL-"]
+        for name, relation in self.relations.items():
+            print(f"Plotting {name}: {relation}")
+            x_df = self.dfs[relation.independent_dataset]
+            x_col = relation.independent_col
             x_label = f"{values['-X_AXIS_LABEL-']}"
             if values["-X_AXIS_UNITS-"]:
                 x_label += f" ({values['-X_AXIS_UNITS-']})"
-            y_df = self.dfs[values["-DEPENDENT_DATASET-"]]
-            y_col = values["-DEPENDENT_COL-"]
+            y_df = self.dfs[relation.dependent_dataset]
+            y_col = relation.dependent_col
             y_label = f"{values['-Y_AXIS_LABEL-']}"
             if values["-Y_AXIS_UNITS-"]:
                 y_label += f" ({values['-Y_AXIS_UNITS-']})"
             self.ax.set_title(values["-PLOT_TITLE-"])
             self.ax.set_xlabel(x_label)
             self.ax.set_ylabel(y_label)
-            self.ax.plot(x_df[x_col], y_df[y_col], values["-COLOR-"])
+            self.ax.plot(x_df[x_col], y_df[y_col], relation.color)
 
         # Display plot
         fig_agg = FigureCanvasTkAgg(self.fig, self.window["-CANVAS-"].TKCanvas)
         fig_agg.get_tk_widget().pack()
         fig_agg.draw()
-
-        # for name, relation in self.relations.items():
-        #    print(name, relation)
-        #    #x = self.dfs[relation.independent_dataset][relation.independent_col]
-        #    #y = self.dfs[relation.dependent_dataset][relation.dependent_col]
-        #    #self.ax.plot(x, y)
 
     def save_plot(self) -> None:
         file_name = popup_get_file("Choose where to save your plot")
