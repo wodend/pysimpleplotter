@@ -13,6 +13,7 @@ from PySimpleGUI import (
     WIN_CLOSED,
     RELIEF_SUNKEN,
     Canvas,
+    Checkbox,
     Column,
     ColorChooserButton,
     Element,
@@ -357,6 +358,7 @@ class PySimplePlotter:
                     ],
                     pad=(0, 0),
                 ),
+                Checkbox("Include legend", key="-LEGEND-"),
             ],
             [
                 Button("Plot", key="-PLOT-"),
@@ -680,9 +682,16 @@ class PySimplePlotter:
             self.ax.set_title(values["-PLOT_TITLE-"])
             self.ax.set_xlabel(x_label)
             self.ax.set_ylabel(y_label)
-            self.ax.plot(x_df[x_col], y_df[y_col], relation.color)
+            self.ax.plot(
+                x_df[x_col],
+                y_df[y_col],
+                color=relation.color,
+                label=relation.name,
+            )
 
         # Display plot
+        if values["-LEGEND-"]:
+            self.ax.legend()
         fig_agg = FigureCanvasTkAgg(self.fig, self.window["-CANVAS-"].TKCanvas)
         fig_agg.get_tk_widget().pack()
         fig_agg.draw()
